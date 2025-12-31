@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: macs-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - macs-network
+
+  api:
+    build: .
+    container_name: macs-api
+    ports:
+      - "8000:8000"
+    environment:
+      # LLM Provider
+      - LLM_PROVIDER=${LLM_PROVIDER:-qwen}
+      
+      # Qwen Configuration
+      - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}
+      - QWEN_API_BASE=${QWEN_API_BASE}
+      
+      # Model Configuration
+      - LITELLM_MODEL=${LITELLM_MODEL:-qwen/qwen-max}
+      - ORCA_ORCHESTRATOR_MODEL=${ORCA_ORCHESTRATOR_MODEL:-qwen/qwen-max}
+      - ORCA_SUBAGENT_MODEL=${ORCA_SUBAGENT_MODEL:-qwen/qwen-plus}
+      
+      # Redis
+      - REDIS_URL=redis://redis:6379
+      
+      # Application
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - WORKSPACE_DIR=/workspace
+      
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app
+      - ./workspace:/workspace
+      - ./logs:/app/logs
+      - ./prompts:/app/prompts
+    command: uvicorn app.api. main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - macs-network
+    restart: unless-stopped
+
+networks:
+  macs-network: 
+    driver: bridge
+
+volumes:
+  redis_data: 
+    driver: local
