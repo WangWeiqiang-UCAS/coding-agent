@@ -26,7 +26,11 @@ async def test_qwen_connection():
     
     # Create client
     print(f"\n🔧 Creating LLM client...")
-    client = LLMClient()
+    client = LLMClient(
+        model=settings.get_model(),
+        api_key=settings.get_api_key(),
+        api_base=settings.get_api_base(),
+    )
     
     # Test simple completion
     print(f"\n🚀 Sending test request...")

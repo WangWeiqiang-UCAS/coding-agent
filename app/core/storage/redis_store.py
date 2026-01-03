@@ -36,20 +36,28 @@ class RedisContextStore:
         
         # Check if already exists
         exists = await self.redis.exists(key)
-        if exists:
-            logger.warning(f"Context {context.id} already exists in store")
-            return False
-        
-        # Store context as hash
-        context_data = {
-            "id": context.id,
-            "content": context. content,
-            "reported_by": context.reported_by,
-            "task_id": context. task_id or "",
-            "timestamp": str(context.timestamp)
-        }
-        
-        await self.redis.hset(key, mapping=context_data)
+        async with self.redis.pipeline(transaction=True) as pipe:
+            while True:
+                try:
+                    await pipe.watch(key)  # 监视 key
+                    exists = await pipe.exists(key)
+                    if exists:
+                        return False
+
+                    pipe.multi()  # 开始事务
+                    context_data = {
+                    "id": context.id,
+                    "content": context.content,
+                    "reported_by": context.reported_by,
+                    "task_id": context.task_id or "",
+                    "timestamp": str(context.timestamp)
+                    }
+                    pipe.hset(key, mapping=context_data)
+                    # Add to task index if task_id provided
+                    await pipe.execute()  # 如果 key 被修改，自动重试
+                    break
+                except redis.WatchError:
+                    continue  # 重试
         
         # Add to task index if task_id provided
         if context.task_id:

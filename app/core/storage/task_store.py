@@ -117,10 +117,10 @@ class TaskStore:
             return False
         
         # Remove from old status index
-        await self.redis.srem(f"{self. status_index_prefix}{task. status.value}", task_id)
+        await self.redis.srem(f"{self.status_index_prefix}{task.status.value}", task_id)
         
         # Update task
-        task. status = status
+        task.status = status
         task.updated_at = time.time()
         
         if result:
@@ -132,7 +132,7 @@ class TaskStore:
         
         # Save updated task
         key = f"{self.key_prefix}{task_id}"
-        await self.redis. set(key, task.model_dump_json())
+        await self.redis.set(key, task.model_dump_json())
         
         # Add to new status index
         await self.redis.sadd(f"{self. status_index_prefix}{status. value}", task_id)
