@@ -3,7 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
-. Python
+.Python
 build/
 develop-eggs/
 dist/
@@ -17,14 +17,14 @@ sdist/
 var/
 wheels/
 *.egg-info/
-.installed. cfg
+.installed.cfg
 *.egg
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-. Python
+.Python
 build/
 develop-eggs/
 dist/
@@ -38,7 +38,7 @@ sdist/
 var/
 wheels/
 *.egg-info/
-.installed. cfg
+.installed.cfg
 *.egg
 
 # 虚拟环境
@@ -48,13 +48,13 @@ ENV/
 
 # IDE
 .vscode/
-. idea/
-*. swp
+.idea/
+*.swp
 *.swo
 *~
 
 # 环境变量
-.env. local
+.env.local
 .env.*.local
 
 # 日志
@@ -62,10 +62,10 @@ logs/
 *.log
 
 # Docker
-. docker/
+.docker/
 
 # 测试
-. pytest_cache/
+.pytest_cache/
 .coverage
 htmlcov/
 
