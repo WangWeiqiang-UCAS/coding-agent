@@ -1,0 +1,21 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*. so
+*. egg
+*.egg-info/
+dist/
+build/
+. pytest_cache/
+.coverage
+htmlcov/
+.git/
+.gitignore
+.env. example
+README.md
+tests/
+*. log
+.DS_Store

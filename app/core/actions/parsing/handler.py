@@ -114,7 +114,7 @@ class ActionHandler:
         
         # 🔥 检查内容是否为空
         if not action.content or action.content.strip() == "":
-            logger.error("WriteAction received EMPTY content!")
+            logger.warning("WriteAction received EMPTY content!")
             return f"❌ Write failed: content is empty"
         
         try:
