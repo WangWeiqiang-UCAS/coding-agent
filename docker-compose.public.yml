@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: coding-agent-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  agent:
+    image: wangweiqiang/coding-agent:latest
+    container_name: coding-agent
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./workspace:/app/workspace
+    environment:
+      # LLM 配置
+      - LLM_PROVIDER=${LLM_PROVIDER:-qwen}
+      - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}
+      - QWEN_API_BASE=${QWEN_API_BASE:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      
+      # OpenAI 配置（可选）
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_API_BASE=${OPENAI_API_BASE:-https://api.openai.com/v1}
+      
+      # 模型配置
+      - ORCA_ORCHESTRATOR_MODEL=${ORCA_ORCHESTRATOR_MODEL:-qwen/qwen-max}
+      - ORCA_SUBAGENT_MODEL=${ORCA_SUBAGENT_MODEL:-qwen/qwen-plus}
+      
+      # Redis 配置
+      - REDIS_URL=redis://redis:6379
+      
+      # 应用配置
+      - MAX_TURNS=${MAX_TURNS:-50}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - COMMAND_TIMEOUT=${COMMAND_TIMEOUT:-300}
+    depends_on:
+      redis: 
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  redis_data: 
