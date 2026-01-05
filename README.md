@@ -279,61 +279,48 @@ coding-agent/
 └── README.md             # 本文件
 ```
 
-核心组件
-OrchestratorAgent
+## 核心组件
+### OrchestratorAgent
 主编排器，负责系统的整体调度：
 
 任务处理：接收用户任务
-
 决策生成：调用 LLM 生成 Action
-
 执行管理：执行 Action 并管理状态
-
 记忆管理：管理长期记忆，自动总结和召回历史
 
-MemoryManager
+### MemoryManager
 长期记忆管理器，提供上下文支持：
 
 存储：对话历史存储
-
 总结：智能总结生成
-
 检索：记忆搜索和召回
-
 优化：上下文窗口管理
-
-ActionHandler
+### ActionHandler
 Action 执行器，负责具体操作：
 
 文件操作：文件读写、编辑
-
 系统交互：Bash 命令执行
-
 检索：文件搜索
-
 记忆交互：记忆操作
 
-LLMClient
+### LLMClient
 统一 LLM 接口，确保稳定性：
 
 兼容性：多提供商支持
-
 稳定性：自动重试机制、指数退避
-
 健壮性：完善的错误处理
 
-开发指南
-添加新的 Action
-在 app/core/actions/entities/actions.py 中定义新的 Action 类。
+## 开发指南
+### 添加新的 Action
+#### 在 app/core/actions/entities/actions.py 中定义新的 Action 类。
 
-在 ACTION_TYPE_MAP 中注册该 Action。
+#### 在 ACTION_TYPE_MAP 中注册该 Action。
 
-在 app/core/actions/parsing/handler.py 中实现对应的 _handle_xxx 方法。
+#### 在 app/core/actions/parsing/handler.py 中实现对应的 _handle_xxx 方法。
 
-添加新的 LLM 提供商
-在 app/config/settings.py 添加相关配置。
-
-提示：LiteLLM 已自动支持大部分主流模型，通常只需配置 API Key。
+### 添加新的 LLM 提供商
+#### 在 app/config/settings.py 添加相关配置。
+#### 提示：LiteLLM 已自动支持大部分主流模型，通常只需配置 API Key。
 
 运行测试
 ```bash
