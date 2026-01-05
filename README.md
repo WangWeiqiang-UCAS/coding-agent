@@ -11,28 +11,46 @@
 - **实时反馈** - verbose 模式下显示 Agent 执行的每一步操作
 - **任务模板** - 内置常用任务模板（文档生成、测试、重构等）
 
-## 快速开始
+## 三种使用方式
 
-### 使用 Docker（推荐）
+### 方式一：Docker 一键启动（最简单）
 
 ```bash
-# 1. 克隆仓库
-git clone https://github.com/WangWeiqiang-UCAS/coding-agent.git
-cd coding-agent
+# 下载启动脚本并运行
+curl -fsSL https://raw.githubusercontent.com/WangWeiqiang-UCAS/coding-agent/main/quick-start.sh | bash
 
-# 2. 配置环境变量
-cp .env.example . env
-# 编辑 .env 文件，填入你的 API Key
+# 使用
+docker-compose exec agent coding-agent run "你的任务" --verbose
+```
+### 方式二：使用 Docker 镜像
+```bash
+# 1. 拉取镜像
+docker pull wangweiqiang/coding-agent:latest
 
-# 3. 启动服务
-docker-compose up -d
+# 2. 启动 Redis
+docker run -d --name coding-agent-redis -p 6379:6379 redis:7-alpine
 
-# 4. 使用 CLI（进入容器）
-docker-compose exec agent bash
-coding-agent run "你的任务描述" --verbose
+# 3. 启动 Agent
+docker run -d \
+  --name coding-agent \
+  --link coding-agent-redis:redis \
+  -p 8000:8000 \
+  -e DASHSCOPE_API_KEY=your_api_key_here \
+  -e REDIS_URL=redis://redis:6379 \
+  wangweiqiang/coding-agent:latest
 
+# 4. 使用
+docker exec -it coding-agent coding-agent run "你的任务" --verbose
 ```
 
+### 方式三：从源码安装（开发者）
+```bash
+git clone https://github.com/WangWeiqiang-UCAS/coding-agent.git
+cd coding-agent
+pip install -e . 
+# 配置 .env 后使用
+coding-agent run "你的任务" --verbose
+```
 本地安装
 ```bash
 # 1. 安装依赖
