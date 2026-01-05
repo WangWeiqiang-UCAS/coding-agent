@@ -4,18 +4,19 @@ __pycache__/
 *.pyo
 *.pyd
 .Python
-*. so
-*. egg
+*.so
+*.egg
 *.egg-info/
 dist/
 build/
-. pytest_cache/
+.pytest_cache/
 .coverage
 htmlcov/
 .git/
 .gitignore
-.env. example
 README.md
 tests/
-*. log
+*.log
 .DS_Store
+.env
+workspace/
