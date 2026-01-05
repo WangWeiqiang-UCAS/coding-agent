@@ -30,3 +30,7 @@ httpx==0.26.0
 # Development
 black==24.1.1
 ruff==0.2.0
+
+# CLI dependencies
+click==8.1.7
+rich==13.7.0

@@ -6,6 +6,17 @@
 # 当前写法: 如果新增一个 Action，必须修改这个 _execute_single 方法。
 # 优化写法: 可以用一个字典映射 handler_map = {BashAction: self._handle_bash, ...} 来消除这一长串 if-else。
 
+# cmd = f"echo '{escaped_content}' > {temp_file} && mv {temp_file} {action.file_path}"
+# 风险 (Security):
+# action.content.replace("'", "'\\''"): 这里试图转义单引号。
+# 致命漏洞: 如果 content 里包含 '; rm -rf /; echo '，这简单的 replace 够用吗？
+# （答案是不够的，这是经典的 Shell Injection 漏洞点）。
+
+
+# cmd = f"sed -i 's/{old_escaped}/{new_escaped}/{flag}' {action.file_path}"
+# 原理: 调用 Linux 的流编辑器 sed。
+# 局限性: sed 使用正则表达式。如果 old_string 里包含了特殊的正则符号（比如 . 或 *），
+# 而作者只转义了 /，那么匹配可能会失败或者产生意想不到的结果。
 
 
 

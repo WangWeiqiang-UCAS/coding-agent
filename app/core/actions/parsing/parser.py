@@ -1,140 +1,174 @@
+"""Robust action parser with strict format handling."""
+
 import re
 import logging
 from typing import List, Tuple, Optional
-import yaml
-from pydantic import ValidationError
 
-from app.core.actions.entities.actions import Action, ACTION_TYPE_MAP, FinishAction
+from app.core.actions.entities. actions import Action, ACTION_TYPE_MAP, FinishAction
 
 logger = logging.getLogger(__name__)
 
+
 class SimpleActionParser:
-    """Parse actions from LLM output using XML-like tags."""
+    """Parse actions from LLM output."""
     
     def __init__(self):
-        # 正则表达式：匹配 <tag>content</tag>
-        # 优化：
-        # 1. (?i) 开启大小写不敏感（虽然 xml 通常大小写敏感，但 LLM 容易混淆）
-        # 2. \1 确保闭合标签与开始标签一致
-        self.action_pattern = re.compile(
-            r'<(\w+)>(.*?)</\1>', 
-            re.DOTALL | re.IGNORECASE
-        )
+        # Match action tags with content between them
+        self.action_pattern = re.compile(r'<(\w+)>\s*(.*?)\s*</\1>', re.DOTALL)
     
     def parse(self, llm_output: str) -> Tuple[List[Action], List[str]]:
-        """Parse actions from LLM output.
-        
-        Returns:
-            Tuple of (actions, errors)
-        """
+        """Parse actions from LLM output."""
         actions = []
         errors = []
         
-        # 提取所有 <tag>content</tag> 块
         matches = self.action_pattern.findall(llm_output)
         
         if not matches:
-            logger.debug("No action tags found in LLM output")
             return [], []
         
-        logger.debug(f"Found {len(matches)} action tags")
-        
         for tag_name, content in matches:
-            # 统一转为小写处理，处理例如 <Bash>...</Bash> 的情况
             tag_name = tag_name.lower()
             
             try:
                 action = self._parse_single_action(tag_name, content)
                 if action:
                     actions.append(action)
-                    logger.debug(f"Successfully parsed {tag_name} action")
-            except ValidationError as e:
-                # 专门捕获 Pydantic 验证错误，简化错误信息反馈给 LLM
-                error_msg = f"Validation error in <{tag_name}>: {self._format_pydantic_error(e)}"
-                errors.append(error_msg)
-                logger.warning(error_msg)
+                    logger.debug(f"✅ Parsed {tag_name} action")
             except Exception as e:
-                # 捕获 YAML 解析或其他错误
-                error_msg = f"Failed to parse <{tag_name}> content: {str(e)}"
+                error_msg = f"Failed to parse <{tag_name}>: {str(e)}"
                 errors.append(error_msg)
                 logger.warning(error_msg)
         
         return actions, errors
     
     def _parse_single_action(self, tag_name: str, content: str) -> Optional[Action]:
-        """Parse a single action from tag name and content."""
-        
-        # 查找对应的 Action 类
+        """Parse a single action."""
         action_class = ACTION_TYPE_MAP.get(tag_name)
         
         if not action_class:
-            logger.debug(f"Unknown action tag: {tag_name}")
+            logger.debug(f"Unknown action:  {tag_name}")
             return None
         
-        # 清理内容
-        content = content.strip()
-
-        # --- 新增：清理 LLM 可能生成的 Markdown 代码块标记 ---
-        # 很多 LLM 会输出:
-        # <bash>
-        # ```bash
-        # ls -la
-        # ```
-        # </bash>
-        if content.startswith("```"):
-            lines = content.splitlines()
-            # 如果第一行是 ```yaml 或 ```bash，去掉它
-            if lines[0].startswith("```"):
-                lines = lines[1:]
-            # 如果最后一行是 ```，去掉它
-            if lines and lines[-1].strip() == "```":
-                lines = lines[:-1]
-            content = "\n".join(lines).strip()
-        # --------------------------------------------------
-        
-        # 特殊处理：finish action 的 content 通常是纯文本 message，不是 YAML
+        # Special handling for finish action
         if action_class == FinishAction:
-            # 如果 FinishAction 定义接受 message 参数
-            return FinishAction(message=content)
+            return FinishAction(message=content. strip())
         
-        # 其他 action：解析为 YAML
-        try:
-            # 解析 YAML
-            params = yaml.safe_load(content)
+        content = content.strip()
+        params = self._parse_params(content)
+        
+        if not isinstance(params, dict):
+            params = {"content": str(params)}
+        
+        logger.debug(f"Parsed params for {tag_name}: {list(params.keys())}")
+        
+        return action_class(**params)
+    
+    def _parse_params(self, content: str) -> dict:
+        """Parse YAML-style parameters with robust multiline support."""
+        lines = content.split('\n')
+        params = {}
+        i = 0
+        
+        while i < len(lines):
+            line = lines[i]
+            stripped = line.strip()
             
-            # 处理空内容情况
-            if params is None:
-                params = {}
+            # Skip empty lines and comments
+            if not stripped or stripped.startswith('#'):
+                i += 1
+                continue
             
-            # 如果解析结果不是字典 (例如 LLM 直接输出了命令字符串 'ls -la')
-            # 尝试将其包装为默认字段（假设 Action 有个 content 字段，或者你需要根据 Action 类型特殊处理）
-            if not isinstance(params, dict):
-                # 这里根据你的 BashAction 定义，可能需要改为 cmd=str(params)
-                # 这是一个假设的兜底策略
-                if tag_name == 'bash': 
-                     params = {"cmd": str(params)}
-                else:
-                     params = {"content": str(params)}
+            # Look for key:  value pattern
+            if ':' not in line:
+                i += 1
+                continue
             
-            # 使用 Pydantic 验证和构造
-            # 这里会抛出 ValidationError，由上层捕获
-            action = action_class(**params)
-            return action
+            # Split on first colon
+            colon_idx = line.index(':')
+            key = line[: colon_idx].strip()
+            rest = line[colon_idx + 1:].strip()
             
-        except yaml.YAMLError as e:
-            raise ValueError(f"Invalid YAML format: {e}")
-
-    def _format_pydantic_error(self, e: ValidationError) -> str:
-        """Helper to format Pydantic errors into a concise string."""
-        # 将多行的复杂错误转换为简单的 "Field 'x': error message" 格式
-        messages = []
-        for err in e.errors():
-            loc = ".".join(str(l) for l in err['loc'])
-            msg = err['msg']
-            messages.append(f"Field '{loc}': {msg}")
-        return "; ".join(messages)
-
-# 便捷函数保持不变
-def parse_actions(llm_output: str) -> Tuple[List[Action], List[str]]:
-    parser = SimpleActionParser()
-    return parser.parse(llm_output)
+            # Remove quotes from key (handles weird cases)
+            key = key.strip('"\'')
+            
+            # Case 1: Explicit multiline with pipe |
+            if rest == '|':
+                i += 1
+                content_lines = []
+                base_indent = None
+                
+                while i < len(lines):
+                    next_line = lines[i]
+                    
+                    # Stop at next key (unindented line with colon)
+                    if next_line and not next_line[0].isspace() and ': ' in next_line:
+                        break
+                    
+                    # Determine base indentation from first content line
+                    if base_indent is None and next_line. strip():
+                        base_indent = len(next_line) - len(next_line.lstrip())
+                    
+                    # Strip base indentation
+                    if base_indent is not None:
+                        if len(next_line) >= base_indent:
+                            content_lines.append(next_line[base_indent:])
+                        else:
+                            content_lines.append(next_line. lstrip())
+                    
+                    i += 1
+                
+                params[key] = '\n'.join(content_lines).rstrip()
+            
+            # Case 2: Empty value - collect following lines
+            elif rest == '':
+                i += 1
+                content_lines = []
+                
+                while i < len(lines):
+                    next_line = lines[i]
+                    next_stripped = next_line.strip()
+                    
+                    # Stop at next key
+                    if next_stripped and ':' in next_line and not next_line[0].isspace():
+                        break
+                    
+                    # Add line content
+                    if next_stripped: 
+                        content_lines.append(next_stripped)
+                    
+                    i += 1
+                
+                params[key] = '\n'.join(content_lines)
+            
+            # Case 3: Value on same line
+            else:
+                # Remove quotes if present
+                value = rest
+                if (value.startswith('"') and value.endswith('"')) or \
+                   (value.startswith("'") and value.endswith("'")):
+                    value = value[1:-1]
+                
+                # Check if there are more lines belonging to this value
+                value_lines = [value]
+                i += 1
+                
+                while i < len(lines):
+                    next_line = lines[i]
+                    next_stripped = next_line.strip()
+                    
+                    # Empty line - skip but continue
+                    if not next_stripped: 
+                        i += 1
+                        continue
+                    
+                    # Next key - stop
+                    if ':' in next_line and not next_line[0].isspace():
+                        break
+                    
+                    # More content for current value
+                    value_lines.append(next_stripped)
+                    i += 1
+                
+                params[key] = '\n'.join(value_lines)
+        
+        return params

@@ -220,3 +220,23 @@ ACTION_TYPE_MAP = {
     "launch_subagent":  LaunchSubagentAction,
     "report": ReportAction,
 }
+class RecallAction(Action):
+    """Recall information from long-term memory. 
+    
+    Example:
+        <recall>
+        turn_range: "5-10"
+        </recall>
+        
+        Or search: 
+        <recall>
+        query: "login function"
+        </recall>
+    """
+    turn_range: Optional[str] = Field(None, description="Turn range to recall (e.g., '5-10')")
+    query: Optional[str] = Field(None, description="Search query")
+    limit: int = Field(default=5, description="Maximum results for search")
+
+
+# 更新映射表
+ACTION_TYPE_MAP["recall"] = RecallAction
